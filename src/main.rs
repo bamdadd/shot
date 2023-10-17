@@ -1,21 +1,24 @@
-use rdev::{listen, Event, EventType, Key};
-use screenshots::Screen;
 use std::thread;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tray_item::{TrayItem, IconSource};
+use std::time::Duration;
+
+use rdev::listen;
 use time;
+use tray_item::{IconSource, TrayItem};
+
+mod keypress_handler;
+mod screenshot;
 
 fn main() {
     // Listening to events in a separate thread so as not to block the main thread
 
     thread::spawn(|| {
-        listen(callback);
+        listen(keypress_handler::on_keypress);
     });
 
     let mut tray = TrayItem::new("SHOT", IconSource::Resource("")).unwrap();
 
     tray.add_menu_item("Take screenshot - F1", || {
-        take_screenshot().unwrap();
+        screenshot::take_screenshot().unwrap();
     }).unwrap();
 
     let mut inner = tray.inner_mut();
@@ -27,34 +30,4 @@ fn main() {
     loop {
         thread::sleep(Duration::from_millis(1000));
     }
-}
-
-fn callback(event: Event) {
-    // Replace this with whatever hotkey you want to trigger the screenshot
-    if let EventType::KeyPress(Key::F1) = event.event_type {
-        println!("F1 key pressed, taking screenshot...");
-        match take_screenshot() {
-            Ok(_) => println!("Screenshot taken successfully."),
-            Err(e) => println!("Failed to take a screenshot: {:?}", e),
-        }
-    }
-}
-
-fn take_screenshot() -> Result<(), Box<dyn std::error::Error>> {
-    let start = Instant::now();
-    let screens = Screen::all().unwrap();
-
-    for screen in screens {
-        println!("capturer {screen:?}");
-        let mut image = screen.capture().unwrap();
-        image
-            .save(format!("/Users/bamdad/Downloads/{}.png",
-                          SystemTime::now()
-                              .duration_since(UNIX_EPOCH)
-                              .unwrap().as_secs()))
-            .unwrap();
-    }
-
-    println!("Elapsed time: {:?}", start.elapsed());
-    Ok(())
 }
